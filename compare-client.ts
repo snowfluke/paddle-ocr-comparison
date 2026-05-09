@@ -556,6 +556,43 @@ function setupImageUpload() {
   }
 }
 
+async function initModels() {
+  const btn = $("init-btn");
+  btn.disabled = true;
+  setGlobalStatus("Downloading & initializing @paddleocr/paddleocr-js...");
+  try {
+    const ocr = await PaddleOCR.create({
+      lang: "en",
+      ocrVersion: "PP-OCRv5",
+      ortOptions: {
+        backend: "wasm",
+        wasmPaths: "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.26.0/dist/",
+      },
+    });
+    await ocr.dispose();
+  } catch (e) {
+    console.error("Official init error:", e);
+  }
+
+  setGlobalStatus("Downloading & initializing ppu-paddle-ocr...");
+  try {
+    const service = new PaddleOcrService({
+      model: {
+        recognition: `${MODEL_BASE_URL}/recognition/multi/en/v5/en_PP-OCRv5_mobile_rec_infer_int8.onnx`
+      }
+    });
+    await service.initialize();
+    await service.destroy();
+  } catch (e) {
+    console.error("PPU init error:", e);
+  }
+
+  setGlobalStatus("Ready");
+  btn.textContent = "✓ Models Ready";
+  setButtonsDisabled(false);
+}
+
+$("init-btn").addEventListener("click", () => initModels());
 $("autofill-btn").addEventListener("click", () => autofillGroundTruth());
 $("reset-gt-btn").addEventListener("click", () => {
   $("ground-truth").value = DEFAULT_GROUND_TRUTH;
