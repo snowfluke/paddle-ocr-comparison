@@ -2,6 +2,9 @@
 import { PaddleOCR } from "@paddleocr/paddleocr-js";
 import { PaddleOcrService } from "ppu-paddle-ocr/web";
 
+const MODEL_BASE_URL =
+  "https://media.githubusercontent.com/media/PT-Perkasa-Pilar-Utama/ppu-paddle-ocr-models/main";
+
 const DEFAULT_GROUND_TRUTH = `ALFAMART ARTHA GADING N / 081294665105
 PT.SUMBER ALFARIA TRIJAYA, TBK
 ALFA TOWER LT.12, ALAM SUTERA, TANGERANG
@@ -206,7 +209,12 @@ async function runOfficial(blob) {
 async function runPpu(canvas) {
   const truth = getGroundTruth();
   const initStart = performance.now();
-  const service = new PaddleOcrService();
+
+  const service = new PaddleOcrService({
+      model: {
+          recognition: `${MODEL_BASE_URL}/recognition/multi/en/v5/en_PP-OCRv5_mobile_rec_infer_int8.onnx`
+      }
+  });
   await service.initialize();
   const initTime = performance.now() - initStart;
 
