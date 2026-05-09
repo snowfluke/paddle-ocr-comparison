@@ -578,7 +578,8 @@ async function initModels() {
   try {
     const service = new PaddleOcrService({
       model: {
-        recognition: `${MODEL_BASE_URL}/recognition/multi/en/v5/en_PP-OCRv5_mobile_rec_infer_int8.onnx`
+        detection: `${MODEL_BASE_URL}/detection/PP-OCRv5_mobile_det_infer.ort`,
+        recognition: `${MODEL_BASE_URL}/recognition/multi/en/v5/en_PP-OCRv5_mobile_rec_infer_int8.ort`
       }
     });
     await service.initialize();
