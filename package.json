@@ -1,0 +1,21 @@
+{
+  "name": "paddle-comparison",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "scripts": {
+    "build:compare": "bun run build-compare.ts",
+    "serve:compare": "bun run serve-compare.ts"
+  },
+  "dependencies": {
+    "@paddleocr/paddleocr-js": "^0.3.2",
+    "onnxruntime-node": "^1.26.0",
+    "ppu-paddle-ocr": "^5.2.0"
+  }
+}
