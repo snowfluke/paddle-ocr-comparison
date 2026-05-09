@@ -136,7 +136,7 @@ function setButtonsDisabled(disabled) {
 
 async function loadImageBlob() {
   if (currentBlob) return currentBlob;
-  const res = await fetch("/receipt.jpg");
+  const res = await fetch("./receipt.jpg");
   currentBlob = await res.blob();
   return currentBlob;
 }
