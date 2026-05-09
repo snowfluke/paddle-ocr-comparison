@@ -1,6 +1,6 @@
 const result = await Bun.build({
   entrypoints: [import.meta.dir + "/compare-client.ts"],
-  outdir: import.meta.dir + "/out",
+  outdir: import.meta.dir,
   target: "browser",
   naming: "[name].[ext]",
   plugins: [

@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PaddleOCR SDK Comparison</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --card: #1a1d27;
+      --border: #2a2d3a;
+      --text: #e1e4ed;
+      --text-muted: #8b8fa3;
+      --accent: #6366f1;
+      --green: #22c55e;
+      --yellow: #eab308;
+      --red: #ef4444;
+      --blue: #3b82f6;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    h1 { font-size: 1.75rem; font-weight: 700; margin-bottom: 0.25rem; }
+    h2 { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.75rem; }
+    h3 { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.5rem; }
+
+    .subtitle { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem; }
+
+    .header { margin-bottom: 1.5rem; }
+
+    .reference-section {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .reference-panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+    }
+
+    .reference-panel img {
+      max-width: 100%;
+      max-height: 400px;
+      border-radius: 4px;
+    }
+
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      margin-bottom: 0.75rem;
+      position: relative;
+    }
+
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: var(--accent);
+      background: rgba(99, 102, 241, 0.05);
+    }
+
+    .drop-zone input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .drop-zone-text {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      pointer-events: none;
+    }
+
+    .drop-zone-text strong {
+      color: var(--accent);
+    }
+
+    .preview-img {
+      max-width: 100%;
+      max-height: 350px;
+      border-radius: 4px;
+      display: block;
+      margin: 0 auto;
+    }
+
+    .gt-editor {
+      width: 100%;
+      min-height: 320px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text);
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 0.8rem;
+      line-height: 1.6;
+      padding: 0.75rem;
+      resize: vertical;
+      outline: none;
+    }
+
+    .gt-editor:focus {
+      border-color: var(--accent);
+    }
+
+    .gt-actions {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      margin-top: 0.5rem;
+    }
+
+    .gt-hint {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .controls {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    button {
+      padding: 0.6rem 1.2rem;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+
+    button:hover { opacity: 0.9; }
+    button:active { transform: scale(0.98); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-secondary { background: var(--border); color: var(--text); }
+    .btn-small { padding: 0.4rem 0.8rem; font-size: 0.75rem; }
+
+    #global-status {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-left: 0.5rem;
+    }
+
+    .panels {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+
+    .status-badge {
+      font-size: 0.75rem;
+      padding: 0.2rem 0.6rem;
+      border-radius: 9999px;
+      font-weight: 600;
+    }
+
+    .status-ready { background: var(--border); color: var(--text-muted); }
+    .status-running { background: #312e81; color: #a5b4fc; }
+    .status-done { background: #14532d; color: #86efac; }
+    .status-error { background: #7f1d1d; color: #fca5a5; }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .metric {
+      background: rgba(255,255,255,0.03);
+      border-radius: 4px;
+      padding: 0.5rem;
+    }
+
+    .metric-label {
+      display: block;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .metric-value {
+      display: block;
+      font-size: 1rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .accuracy-badge {
+      display: inline-block;
+      padding: 0.3rem 0.75rem;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 1.25rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .accuracy-high { background: #14532d; color: #86efac; }
+    .accuracy-mid { background: #422006; color: #fbbf24; }
+    .accuracy-low { background: #7f1d1d; color: #fca5a5; }
+
+    .result-text {
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .result-text pre {
+      font-size: 0.8rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .diff-add { background: rgba(34, 197, 94, 0.2); }
+    .diff-remove { background: rgba(239, 68, 68, 0.2); text-decoration: line-through; }
+    .diff-same { color: var(--text-muted); }
+
+    .summary {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .summary table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .summary th {
+      text-align: left;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      padding: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .summary td {
+      padding: 0.5rem;
+      font-variant-numeric: tabular-nums;
+      font-size: 0.9rem;
+    }
+
+    .summary .winner { color: var(--green); font-weight: 700; }
+
+    .benchmark-section {
+      margin-top: 1rem;
+    }
+
+    .benchmark-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .benchmark-table th, .benchmark-table td {
+      padding: 0.4rem 0.75rem;
+      text-align: left;
+      font-size: 0.8rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .benchmark-table th {
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-size: 0.7rem;
+      letter-spacing: 0.05em;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      margin-right: 0.4rem;
+      vertical-align: middle;
+    }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>PaddleOCR SDK Comparison</h1>
+    <p class="subtitle">
+      @paddleocr/paddleocr-js (Official) vs ppu-paddle-ocr &mdash; speed &amp; accuracy
+    </p>
+  </div>
+
+  <div class="reference-section">
+    <div class="reference-panel">
+      <h3>Input Image</h3>
+      <div class="drop-zone" id="drop-zone">
+        <input type="file" id="file-input" accept="image/*" />
+        <div id="drop-text" class="drop-zone-text">
+          <strong>Click or drop an image</strong> to change &mdash; default: receipt.jpg
+        </div>
+      </div>
+      <img id="receipt-img" src="/receipt.jpg" alt="Receipt" class="preview-img" />
+    </div>
+    <div class="reference-panel">
+      <h3>Ground Truth <span class="gt-hint">(edit as needed)</span></h3>
+      <textarea class="gt-editor" id="ground-truth" spellcheck="false">ALFAMART ARTHA GADING N / 081294665105
+PT.SUMBER ALFARIA TRIJAYA, TBK
+ALFA TOWER LT.12, ALAM SUTERA, TANGERANG
+NPWP : 01.336.238.9-054.000
+KOMP. RUKO ARTHA GADING NIAGA KELAPA GAD
+Bon JA19-789-17015H94 Kasir : MARDIYAN
+MARLBORO LGT 20 1 44,900 44,900
+Total Item 1 44,900
+Tunai 44,900
+Kembalian 0
+PPN ( 0)
+Tgl. 17-01-2024 15:31:44 V.2023.11.0
+Kritik&Saran:1500959
+SMS/WA: 081110640888</textarea>
+      <div class="gt-actions">
+        <button class="btn-secondary btn-small" id="autofill-btn">Autofill from ppu-paddle-ocr</button>
+        <button class="btn-secondary btn-small" id="reset-gt-btn">Reset to default</button>
+        <span class="gt-hint" id="autofill-status"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="btn-primary" id="run-btn">Run Comparison</button>
+    <button class="btn-secondary" id="bench5-btn">Benchmark 5x</button>
+    <button class="btn-secondary" id="bench10-btn">Benchmark 10x</button>
+    <span id="global-status"></span>
+  </div>
+
+  <div class="panels" id="panels">
+    <div class="panel" id="official-panel">
+      <div class="panel-header">
+        <h2 style="margin:0">@paddleocr/paddleocr-js</h2>
+        <span class="status-badge status-ready" id="official-status">Ready</span>
+      </div>
+      <div class="metrics hidden" id="official-metrics">
+        <div class="metric"><span class="metric-label">Init</span><span class="metric-value" id="official-init">&mdash;</span></div>
+        <div class="metric"><span class="metric-label">Predict</span><span class="metric-value" id="official-predict">&mdash;</span></div>
+        <div class="metric"><span class="metric-label">Detect</span><span class="metric-value" id="official-det">&mdash;</span></div>
+        <div class="metric"><span class="metric-label">Recognize</span><span class="metric-value" id="official-rec">&mdash;</span></div>
+        <div class="metric"><span class="metric-label">Boxes</span><span class="metric-value" id="official-boxes">&mdash;</span></div>
+        <div class="metric"><span class="metric-label">Lines</span><span class="metric-value" id="official-lines">&mdash;</span></div>
+      </div>
+      <div class="accuracy-badge hidden" id="official-accuracy-badge">&mdash;</div>
+      <div class="result-text hidden" id="official-result"><pre id="official-text"></pre></div>
+    </div>
+
+    <div class="panel" id="ppu-panel">
+      <div class="panel-header">
+        <h2 style="margin:0">ppu-paddle-ocr</h2>
+        <span class="status-badge status-ready" id="ppu-status">Ready</span>
+      </div>
+      <div class="metrics hidden" id="ppu-metrics">
+        <div class="metric"><span class="metric-label">Init</span><span class="metric-value" id="ppu-init">&mdash;</span></div>
+        <div class="metric"><span class="metric-label">Predict</span><span class="metric-value" id="ppu-predict">&mdash;</span></div>
+        <div class="metric"><span class="metric-label">Detect</span><span class="metric-value" id="ppu-det">&mdash;</span></div>
+        <div class="metric"><span class="metric-label">Recognize</span><span class="metric-value" id="ppu-rec">&mdash;</span></div>
+        <div class="metric"><span class="metric-label">Boxes</span><span class="metric-value" id="ppu-boxes">&mdash;</span></div>
+        <div class="metric"><span class="metric-label">Lines</span><span class="metric-value" id="ppu-lines">&mdash;</span></div>
+      </div>
+      <div class="accuracy-badge hidden" id="ppu-accuracy-badge">&mdash;</div>
+      <div class="result-text hidden" id="ppu-result"><pre id="ppu-text"></pre></div>
+    </div>
+  </div>
+
+  <div class="summary hidden" id="summary">
+    <h2>Summary</h2>
+    <table id="summary-table">
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>@paddleocr/paddleocr-js</th>
+          <th>ppu-paddle-ocr</th>
+        </tr>
+      </thead>
+      <tbody id="summary-body"></tbody>
+    </table>
+    <div class="benchmark-section hidden" id="benchmark-section">
+      <h3>Benchmark Results</h3>
+      <table class="benchmark-table" id="benchmark-table">
+        <thead>
+          <tr>
+            <th>Run</th>
+            <th>Official (ms)</th>
+            <th>ppu (ms)</th>
+          </tr>
+        </thead>
+        <tbody id="benchmark-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script type="module" src="./compare-client.js"></script>
+</body>
+</html>
