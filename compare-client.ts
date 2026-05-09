@@ -136,8 +136,12 @@ function setButtonsDisabled(disabled) {
 
 async function loadImageBlob() {
   if (currentBlob) return currentBlob;
-  const res = await fetch("./receipt.jpg");
-  currentBlob = await res.blob();
+  const img = $("receipt-img") as HTMLImageElement;
+  const canvas = document.createElement("canvas");
+  canvas.width = img.naturalWidth || img.width;
+  canvas.height = img.naturalHeight || img.height;
+  canvas.getContext("2d").drawImage(img, 0, 0);
+  currentBlob = await new Promise<Blob>((r) => canvas.toBlob((b) => r(b), "image/jpeg"));
   return currentBlob;
 }
 
@@ -152,11 +156,15 @@ async function blobToCanvas(blob) {
   img.src = URL.createObjectURL(blob);
   await new Promise((r) => (img.onload = r));
   const canvas = document.createElement("canvas");
-  canvas.width = img.width;
-  canvas.height = img.height;
+  canvas.width = img.naturalWidth || img.width;
+  canvas.height = img.naturalHeight || img.height;
   canvas.getContext("2d").drawImage(img, 0, 0);
   URL.revokeObjectURL(img.src);
   return canvas;
+}
+
+async function getImageBitmap(blob) {
+  return await createImageBitmap(blob);
 }
 
 async function runOfficial(blob) {
