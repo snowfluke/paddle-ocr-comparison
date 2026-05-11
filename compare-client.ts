@@ -212,7 +212,8 @@ async function runPpu(canvas) {
 
   const service = new PaddleOcrService({
       model: {
-          recognition: `${MODEL_BASE_URL}/recognition/multi/en/v5/en_PP-OCRv5_mobile_rec_infer_int8.onnx`
+          detection: `${MODEL_BASE_URL}/detection/PP-OCRv5_mobile_det_infer.ort`,
+          recognition: `${MODEL_BASE_URL}/recognition/multi/en/v5/en_PP-OCRv5_mobile_rec_infer_int8.ort`
       }
   });
   await service.initialize();
@@ -340,7 +341,12 @@ async function runComparison() {
   setGlobalStatus("Warming up ppu-paddle-ocr...");
   setStatus("ppu", "running", "Warming up...");
   try {
-    const service = new PaddleOcrService();
+    const service = new PaddleOcrService({
+      model: {
+        detection: `${MODEL_BASE_URL}/detection/PP-OCRv5_mobile_det_infer.ort`,
+        recognition: `${MODEL_BASE_URL}/recognition/multi/en/v5/en_PP-OCRv5_mobile_rec_infer_int8.ort`
+      }
+    });
     await service.initialize();
     await service.recognize(canvas, { noCache: true });
     await service.destroy();
@@ -422,7 +428,12 @@ async function runBenchmark(runs) {
 
   setGlobalStatus("Initializing & warming up ppu-paddle-ocr...");
   try {
-    service = new PaddleOcrService();
+    service = new PaddleOcrService({
+      model: {
+        detection: `${MODEL_BASE_URL}/detection/PP-OCRv5_mobile_det_infer.ort`,
+        recognition: `${MODEL_BASE_URL}/recognition/multi/en/v5/en_PP-OCRv5_mobile_rec_infer_int8.ort`
+      }
+    });
     await service.initialize();
     await service.recognize(canvas, { noCache: true });
   } catch (e) {
@@ -559,6 +570,7 @@ function setupImageUpload() {
 async function initModels() {
   const btn = $("init-btn");
   btn.disabled = true;
+
   setGlobalStatus("Downloading & initializing @paddleocr/paddleocr-js...");
   try {
     const ocr = await PaddleOCR.create({
