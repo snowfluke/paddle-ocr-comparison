@@ -6,6 +6,9 @@ Bun.serve({
     "/receipt.jpg": () => new Response(Bun.file(import.meta.dir + "/receipt.jpg"), {
       headers: { "Content-Type": "image/jpeg" },
     }),
+    "/compare-client.js": () => new Response(Bun.file(import.meta.dir + "/compare-client.js"), {
+      headers: { "Content-Type": "application/javascript; charset=utf-8" },
+    }),
   },
   development: {
     hmr: true,
