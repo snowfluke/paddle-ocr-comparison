@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { PaddleOCR } from "@paddleocr/paddleocr-js";
 import { PaddleOcrService } from "ppu-paddle-ocr/web";
+import Tesseract from "tesseract.js";
 
 const MODEL_BASE_URL =
   "https://media.githubusercontent.com/media/PT-Perkasa-Pilar-Utama/ppu-paddle-ocr-models/main";
@@ -241,68 +242,83 @@ async function runPpu(canvas) {
   };
 }
 
-function displayResults(official, ppu) {
+async function runTesseract(canvas) {
   const truth = getGroundTruth();
-  if (official) {
-    show("official-metrics");
-    $("official-init").textContent = formatMs(official.initTime);
-    $("official-predict").textContent = formatMs(official.predictTime);
-    $("official-det").textContent = official.detMs != null ? formatMs(official.detMs) : "\u2014";
-    $("official-rec").textContent = official.recMs != null ? formatMs(official.recMs) : "\u2014";
-    $("official-boxes").textContent = official.boxes ?? "\u2014";
-    $("official-lines").textContent = official.lines ?? "\u2014";
+  const initStart = performance.now();
+  const worker = await Tesseract.createWorker("eng");
+  const initTime = performance.now() - initStart;
 
-    $("official-accuracy-badge").textContent = `${official.accuracy.toFixed(1)}% accuracy`;
-    $("official-accuracy-badge").className = "accuracy-badge " + accuracyClass(official.accuracy);
-    show("official-accuracy-badge");
+  const predictStart = performance.now();
+  const result = await worker.recognize(canvas);
+  const predictTime = performance.now() - predictStart;
 
-    $("official-text").innerHTML = renderDiff(official.text, truth);
-    show("official-result");
-  }
+  await worker.terminate();
 
-  if (ppu) {
-    show("ppu-metrics");
-    $("ppu-init").textContent = formatMs(ppu.initTime);
-    $("ppu-predict").textContent = formatMs(ppu.predictTime);
-    $("ppu-det").textContent = ppu.detMs != null ? formatMs(ppu.detMs) : "\u2014";
-    $("ppu-rec").textContent = ppu.recMs != null ? formatMs(ppu.recMs) : "\u2014";
-    $("ppu-boxes").textContent = ppu.boxes ?? "\u2014";
-    $("ppu-lines").textContent = ppu.lines ?? "\u2014";
+  const text = result.data?.text ?? "";
+  const normalizedText = normalizeText(text);
+  const lines = result.data?.lines ?? [];
+  const words = result.data?.words ?? [];
 
-    $("ppu-accuracy-badge").textContent = `${ppu.accuracy.toFixed(1)}% accuracy`;
-    $("ppu-accuracy-badge").className = "accuracy-badge " + accuracyClass(ppu.accuracy);
-    show("ppu-accuracy-badge");
+  return {
+    initTime,
+    predictTime,
+    detMs: null,
+    recMs: null,
+    totalMs: null,
+    boxes: words.length || null,
+    lines: lines.length || normalizedText.split("\n").length,
+    text: normalizedText,
+    accuracy: charAccuracy(text, truth),
+    wordAcc: wordAccuracy(text, truth),
+  };
+}
 
-    $("ppu-text").innerHTML = renderDiff(ppu.text, truth);
-    show("ppu-result");
-  }
+function renderPanel(prefix, r, truth) {
+  show(prefix + "-metrics");
+  $(prefix + "-init").textContent = formatMs(r.initTime);
+  $(prefix + "-predict").textContent = formatMs(r.predictTime);
+  $(prefix + "-det").textContent = r.detMs != null ? formatMs(r.detMs) : "—";
+  $(prefix + "-rec").textContent = r.recMs != null ? formatMs(r.recMs) : "—";
+  $(prefix + "-boxes").textContent = r.boxes ?? "—";
+  $(prefix + "-lines").textContent = r.lines ?? "—";
 
-  if (official && ppu) {
+  $(prefix + "-accuracy-badge").textContent = `${r.accuracy.toFixed(1)}% accuracy`;
+  $(prefix + "-accuracy-badge").className = "accuracy-badge " + accuracyClass(r.accuracy);
+  show(prefix + "-accuracy-badge");
+
+  $(prefix + "-text").innerHTML = renderDiff(r.text, truth);
+  show(prefix + "-result");
+}
+
+function displayResults(official, ppu, tesseract) {
+  const truth = getGroundTruth();
+  if (official) renderPanel("official", official, truth);
+  if (ppu) renderPanel("ppu", ppu, truth);
+  if (tesseract) renderPanel("tesseract", tesseract, truth);
+
+  if (official && ppu && tesseract) {
     show("summary");
     const body = $("summary-body");
     body.innerHTML = "";
 
     const rows = [
-      { label: "Init Time", official: official.initTime, ppu: ppu.initTime, unit: "ms", lower: true },
-      { label: "Predict Time", official: official.predictTime, ppu: ppu.predictTime, unit: "ms", lower: true },
-      { label: "Char Accuracy", official: official.accuracy, ppu: ppu.accuracy, unit: "%", lower: false },
-      { label: "Word Accuracy", official: official.wordAcc, ppu: ppu.wordAcc, unit: "%", lower: false },
-      { label: "Lines Detected", official: official.lines, ppu: ppu.lines, unit: "", lower: null },
+      { label: "Init Time", values: [official.initTime, ppu.initTime, tesseract.initTime], unit: "ms", lower: true },
+      { label: "Predict Time", values: [official.predictTime, ppu.predictTime, tesseract.predictTime], unit: "ms", lower: true },
+      { label: "Char Accuracy", values: [official.accuracy, ppu.accuracy, tesseract.accuracy], unit: "%", lower: false },
+      { label: "Word Accuracy", values: [official.wordAcc, ppu.wordAcc, tesseract.wordAcc], unit: "%", lower: false },
+      { label: "Lines Detected", values: [official.lines, ppu.lines, tesseract.lines], unit: "", lower: null },
     ];
 
     for (const row of rows) {
       const tr = document.createElement("tr");
-      const isWinner = row.lower !== null
-        ? row.lower
-          ? Math.min(row.official, row.ppu)
-          : Math.max(row.official, row.ppu)
+      const best = row.lower !== null
+        ? (row.lower ? Math.min(...row.values) : Math.max(...row.values))
         : null;
 
-      tr.innerHTML = `
-        <td>${row.label}</td>
-        <td class="${isWinner !== null && row.official === isWinner ? "winner" : ""}">${row.unit === "ms" ? formatMs(row.official) : row.official.toFixed(1) + row.unit}</td>
-        <td class="${isWinner !== null && row.ppu === isWinner ? "winner" : ""}">${row.unit === "ms" ? formatMs(row.ppu) : row.ppu.toFixed(1) + row.unit}</td>
-      `;
+      const fmt = (v) => row.unit === "ms" ? formatMs(v) : (row.unit === "%" ? v.toFixed(1) + "%" : String(v));
+      const cell = (v) => `<td class="${best !== null && v === best ? "winner" : ""}">${fmt(v)}</td>`;
+
+      tr.innerHTML = `<td>${row.label}</td>${cell(row.values[0])}${cell(row.values[1])}${cell(row.values[2])}`;
       body.appendChild(tr);
     }
   }
@@ -313,12 +329,14 @@ async function runComparison() {
   setGlobalStatus("Loading image...");
   setStatus("official", "running", "Loading...");
   setStatus("ppu", "running", "Loading...");
+  setStatus("tesseract", "running", "Loading...");
 
   const blob = await loadImageBlob();
   const canvas = await getCanvas();
 
   let officialResult = null;
   let ppuResult = null;
+  let tesseractResult = null;
 
   setGlobalStatus("Warming up @paddleocr/paddleocr-js...");
   setStatus("official", "running", "Warming up...");
@@ -355,6 +373,17 @@ async function runComparison() {
     console.error("PPU warmup error:", e);
   }
 
+  setGlobalStatus("Warming up tesseract.js...");
+  setStatus("tesseract", "running", "Warming up...");
+  try {
+    const worker = await Tesseract.createWorker("eng");
+    await worker.recognize(canvas);
+    await worker.terminate();
+    setStatus("tesseract", "ready", "Warmed up");
+  } catch (e) {
+    console.error("Tesseract warmup error:", e);
+  }
+
   setGlobalStatus("Running @paddleocr/paddleocr-js...");
   setStatus("official", "running", "Running...");
   try {
@@ -375,8 +404,18 @@ async function runComparison() {
     setStatus("ppu", "error", "Error: " + e.message);
   }
 
+  setGlobalStatus("Running tesseract.js...");
+  setStatus("tesseract", "running", "Running...");
+  try {
+    tesseractResult = await runTesseract(canvas);
+    setStatus("tesseract", "done", "Done");
+  } catch (e) {
+    console.error("Tesseract OCR error:", e);
+    setStatus("tesseract", "error", "Error: " + e.message);
+  }
+
   setGlobalStatus("");
-  displayResults(officialResult, ppuResult);
+  displayResults(officialResult, ppuResult, tesseractResult);
   setButtonsDisabled(false);
 }
 
@@ -385,15 +424,18 @@ async function runBenchmark(runs) {
   setGlobalStatus("Loading image...");
   setStatus("official", "running", "Benchmarking...");
   setStatus("ppu", "running", "Benchmarking...");
+  setStatus("tesseract", "running", "Benchmarking...");
 
   const blob = await loadImageBlob();
   const canvas = await getCanvas();
 
   const officialTimes = [];
   const ppuTimes = [];
+  const tesseractTimes = [];
 
   let ocr = null;
   let service = null;
+  let worker = null;
 
   setGlobalStatus("Initializing & warming up @paddleocr/paddleocr-js...");
   try {
@@ -456,16 +498,45 @@ async function runBenchmark(runs) {
   }
   try { await service.destroy(); } catch {}
 
+  setGlobalStatus("Initializing & warming up tesseract.js...");
+  try {
+    worker = await Tesseract.createWorker("eng");
+    await worker.recognize(canvas);
+  } catch (e) {
+    console.error("Tesseract init/warmup error:", e);
+    setStatus("tesseract", "error", "Init Error");
+    setGlobalStatus("");
+    setButtonsDisabled(false);
+    return;
+  }
+
+  for (let i = 0; i < runs; i++) {
+    setGlobalStatus(`tesseract.js run ${i + 1}/${runs}...`);
+    const start = performance.now();
+    try {
+      await worker.recognize(canvas);
+      tesseractTimes.push(performance.now() - start);
+    } catch (e) {
+      console.error("Tesseract predict error:", e);
+    }
+  }
+  try { await worker.terminate(); } catch {}
+
   setStatus("official", "done", "Done");
   setStatus("ppu", "done", "Done");
+  setStatus("tesseract", "done", "Done");
   setGlobalStatus("");
 
-  const offAvg = officialTimes.length > 0 ? officialTimes.reduce((a, b) => a + b, 0) / officialTimes.length : 0;
-  const ppuAvg = ppuTimes.length > 0 ? ppuTimes.reduce((a, b) => a + b, 0) / ppuTimes.length : 0;
+  const avg = (arr) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+  const offAvg = avg(officialTimes);
+  const ppuAvg = avg(ppuTimes);
+  const tesAvg = avg(tesseractTimes);
   const offMin = officialTimes.length > 0 ? Math.min(...officialTimes) : 0;
   const offMax = officialTimes.length > 0 ? Math.max(...officialTimes) : 0;
   const ppuMin = ppuTimes.length > 0 ? Math.min(...ppuTimes) : 0;
   const ppuMax = ppuTimes.length > 0 ? Math.max(...ppuTimes) : 0;
+  const tesMin = tesseractTimes.length > 0 ? Math.min(...tesseractTimes) : 0;
+  const tesMax = tesseractTimes.length > 0 ? Math.max(...tesseractTimes) : 0;
 
   show("benchmark-section");
   const body = $("benchmark-body");
@@ -473,16 +544,19 @@ async function runBenchmark(runs) {
 
   for (let i = 0; i < runs; i++) {
     const tr = document.createElement("tr");
-    const oTime = officialTimes[i] != null ? formatMs(officialTimes[i]) : "\u2014";
-    const pTime = ppuTimes[i] != null ? formatMs(ppuTimes[i]) : "\u2014";
-    const oWinner = officialTimes[i] != null && ppuTimes[i] != null && officialTimes[i] < ppuTimes[i];
-    const pWinner = officialTimes[i] != null && ppuTimes[i] != null && ppuTimes[i] < officialTimes[i];
-    tr.innerHTML = `<td>${i + 1}</td><td class="${oWinner ? "winner" : ""}">${oTime}</td><td class="${pWinner ? "winner" : ""}">${pTime}</td>`;
+    const o = officialTimes[i];
+    const p = ppuTimes[i];
+    const t = tesseractTimes[i];
+    const fmt = (v) => v != null ? formatMs(v) : "—";
+    const vals = [o, p, t].filter((v) => v != null);
+    const winner = vals.length > 0 ? Math.min(...vals) : null;
+    const cls = (v) => v != null && v === winner ? "winner" : "";
+    tr.innerHTML = `<td>${i + 1}</td><td class="${cls(o)}">${fmt(o)}</td><td class="${cls(p)}">${fmt(p)}</td><td class="${cls(t)}">${fmt(t)}</td>`;
     body.appendChild(tr);
   }
 
   const sumRow = document.createElement("tr");
-  sumRow.innerHTML = `<td><strong>Avg</strong></td><td><strong>${formatMs(offAvg)}</strong> (min ${formatMs(offMin)}, max ${formatMs(offMax)})</td><td><strong>${formatMs(ppuAvg)}</strong> (min ${formatMs(ppuMin)}, max ${formatMs(ppuMax)})</td>`;
+  sumRow.innerHTML = `<td><strong>Avg</strong></td><td><strong>${formatMs(offAvg)}</strong> (min ${formatMs(offMin)}, max ${formatMs(offMax)})</td><td><strong>${formatMs(ppuAvg)}</strong> (min ${formatMs(ppuMin)}, max ${formatMs(ppuMax)})</td><td><strong>${formatMs(tesAvg)}</strong> (min ${formatMs(tesMin)}, max ${formatMs(tesMax)})</td>`;
   body.appendChild(sumRow);
 
   setButtonsDisabled(false);
@@ -598,6 +672,14 @@ async function initModels() {
     await service.destroy();
   } catch (e) {
     console.error("PPU init error:", e);
+  }
+
+  setGlobalStatus("Downloading & initializing tesseract.js...");
+  try {
+    const worker = await Tesseract.createWorker("eng");
+    await worker.terminate();
+  } catch (e) {
+    console.error("Tesseract init error:", e);
   }
 
   setGlobalStatus("Ready");

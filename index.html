@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PaddleOCR SDK Comparison</title>
+  <title>OCR SDK Comparison</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -178,9 +178,13 @@
 
     .panels {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr 1fr 1fr;
       gap: 1rem;
       margin-bottom: 1.5rem;
+    }
+
+    @media (max-width: 1100px) {
+      .panels { grid-template-columns: 1fr; }
     }
 
     .panel {
@@ -342,9 +346,9 @@
 <body>
   <div class="header">
     <div class="header-text">
-      <h1>PaddleOCR SDK Comparison</h1>
+      <h1>OCR SDK Comparison</h1>
       <p class="subtitle">
-        @paddleocr/paddleocr-js (Official) vs ppu-paddle-ocr &mdash; speed &amp; accuracy
+        @paddleocr/paddleocr-js (Official) vs ppu-paddle-ocr vs tesseract.js &mdash; speed &amp; accuracy
       </p>
     </div>
     <a class="github-link" href="https://github.com/snowfluke/paddle-ocr-comparison" target="_blank" rel="noopener">
@@ -430,6 +434,23 @@ SMS/WA: 081110640888</textarea>
       <div class="accuracy-badge hidden" id="ppu-accuracy-badge">&mdash;</div>
       <div class="result-text hidden" id="ppu-result"><pre id="ppu-text"></pre></div>
     </div>
+
+    <div class="panel" id="tesseract-panel">
+      <div class="panel-header">
+        <h2 style="margin:0">tesseract.js</h2>
+        <span class="status-badge status-ready" id="tesseract-status">Ready</span>
+      </div>
+      <div class="metrics hidden" id="tesseract-metrics">
+        <div class="metric"><span class="metric-label">Init</span><span class="metric-value" id="tesseract-init">&mdash;</span></div>
+        <div class="metric"><span class="metric-label">Predict</span><span class="metric-value" id="tesseract-predict">&mdash;</span></div>
+        <div class="metric"><span class="metric-label">Detect</span><span class="metric-value" id="tesseract-det">&mdash;</span></div>
+        <div class="metric"><span class="metric-label">Recognize</span><span class="metric-value" id="tesseract-rec">&mdash;</span></div>
+        <div class="metric"><span class="metric-label">Words</span><span class="metric-value" id="tesseract-boxes">&mdash;</span></div>
+        <div class="metric"><span class="metric-label">Lines</span><span class="metric-value" id="tesseract-lines">&mdash;</span></div>
+      </div>
+      <div class="accuracy-badge hidden" id="tesseract-accuracy-badge">&mdash;</div>
+      <div class="result-text hidden" id="tesseract-result"><pre id="tesseract-text"></pre></div>
+    </div>
   </div>
 
   <div class="summary hidden" id="summary">
@@ -440,6 +461,7 @@ SMS/WA: 081110640888</textarea>
           <th>Metric</th>
           <th>@paddleocr/paddleocr-js</th>
           <th>ppu-paddle-ocr</th>
+          <th>tesseract.js</th>
         </tr>
       </thead>
       <tbody id="summary-body"></tbody>
@@ -452,6 +474,7 @@ SMS/WA: 081110640888</textarea>
             <th>Run</th>
             <th>Official (ms)</th>
             <th>ppu (ms)</th>
+            <th>tesseract (ms)</th>
           </tr>
         </thead>
         <tbody id="benchmark-body"></tbody>
